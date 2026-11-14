@@ -14,6 +14,7 @@ set(MODULE_PYTHON_SCRIPTS
   PreProcessing/densenet_model.py
   PreProcessing/prepare_classification.py
   PreProcessing/resnet_model.py
+  PreProcessing/model_manager.py
 
   )
 
