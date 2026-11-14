@@ -43,12 +43,14 @@ class GliomaClassifier(ScriptedLoadableModule):
         # TODO: update with short description of the module and a link to online module documentation
         # _() function marks text as translatable to other languages
         self.parent.helpText = _("""
-This is an example of scripted loadable module bundled in an extension.
-See more information in <a href="https://github.com/organization/projectname#GliomaAI">module documentation</a>.
-""")
+        GliomaAI provides automated MRI preprocessing, deep learning-based glioma classification, and Grad-CAM explainability.
+
+        For documentation and usage instructions, visit the <a href="https://github.com/xristosand/SlicerGliomaAI"> 
+        GliomaAI GitHub repository</a>.
+        """)
         # TODO: replace with organization, grant and thanks
         self.parent.acknowledgementText = _("""
-This file was originally developed by Christos Andrianos""")
+This file was originally developed by Christos Andrianos, Department of Biomedical Engineering, University of West Attica, Greece.""")
 
         # Additional initialization step after application startup is complete
         slicer.app.connect("startupCompleted()", registerSampleData)
