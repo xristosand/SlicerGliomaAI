@@ -1,84 +1,109 @@
 import numpy as np
 import slicer
 import os
-import importlib.util
 import sys
 
 def ensure_tensorflow_installed():
+    """
+    Ensure TensorFlow is available for the H5 model.
+
+    TensorFlow 2.19.1 supports Python 3.9-3.12 and avoids
+    the Python 3.12 incompatibility of TensorFlow 2.13.
+    """
     import logging
+    import sys
+    import importlib
 
     try:
         import tensorflow as tf
-        logging.info(f"TensorFlow already installed: {tf.__version__}")
+        logging.info(
+            f"TensorFlow already installed: {tf.__version__}"
+        )
         return tf
 
-    except ModuleNotFoundError:
-        logging.info("TensorFlow not found. Installing...")
+    except ModuleNotFoundError as e:
 
-        # Recommended CPU version
-        slicer.util.pip_install("tensorflow==2.13.0")
+        # Do not attempt installation if a TensorFlow dependency
+        # is missing instead of TensorFlow itself.
+        if e.name != "tensorflow":
+            raise RuntimeError(
+                f"TensorFlow dependency is missing: {e.name}"
+            ) from e
 
-        import tensorflow as tf
-        logging.info(f"TensorFlow installed successfully: {tf.__version__}")
+        if not ((3, 9) <= sys.version_info[:2] <= (3, 12)):
+            raise RuntimeError(
+                "GliomaAI requires TensorFlow 2.19.1, "
+                "which supports Python 3.9-3.12. "
+                f"Current Python version: {sys.version}"
+            )
 
-        return tf
+        logging.info(
+            "TensorFlow not found. Installing tensorflow==2.19.1..."
+        )
+
+        try:
+            slicer.util.pip_install("tensorflow==2.19.1")
+            importlib.invalidate_caches()
+
+            import tensorflow as tf
+
+            logging.info(
+                f"TensorFlow installed successfully: {tf.__version__}"
+            )
+            return tf
+
+        except Exception as install_error:
+            raise RuntimeError(
+                "TensorFlow installation or initialization failed. "
+                "Please check the Slicer Python environment and "
+                "restart Slicer before retrying."
+            ) from install_error
+
 
 
 def ensure_torch_installed():
+    """
+    Initialize PyTorch through the official 3D Slicer PyTorch extension.
+
+    The PyTorchUtils logic handles PyTorch installation when needed.
+    No direct pip installation of torch is performed by GliomaAI.
+    """
     import logging
 
-    if importlib.util.find_spec("torch") is not None:
-        import torch
-        logging.info(f"PyTorch available: {torch.__version__}")
-        return torch
-
     try:
-        import torch
-        logging.info(f"PyTorch available: {torch.__version__}")
-        return torch
-
-    except ModuleNotFoundError:
-        logging.info("PyTorch not found. Installing...")
-        slicer.util.pip_install("typing_extensions>=4.10.0")
-        slicer.util.pip_install("torch")
-        importlib.invalidate_caches()
-
-        try:
-            import torch
-            logging.info(f"PyTorch installed successfully: {torch.__version__}")
-            return torch
-        except Exception as install_error:
-            raise RuntimeError(
-                "PyTorch installation completed but import still failed. "
-                "Please restart Slicer and retry."
-            ) from install_error
-
-    except ImportError as e:
-        error_text = str(e)
-
-        if "TypeIs" in error_text and "typing_extensions" in error_text:
-            logging.info(
-                "Detected outdated typing_extensions. Upgrading dependency..."
-            )
-
-            slicer.util.pip_install("typing_extensions>=4.10.0")
-            importlib.invalidate_caches()
-
-            try:
-                import torch
-                logging.info(
-                    f"PyTorch import recovered: {torch.__version__}"
-                )
-                return torch
-            except Exception as retry_error:
-                raise RuntimeError(
-                    "PyTorch still cannot be imported after upgrading "
-                    "typing_extensions. Please restart Slicer and try again."
-                ) from retry_error
+        import PyTorchUtils
+    except ModuleNotFoundError as e:
+        if e.name != "PyTorchUtils":
+            raise
 
         raise RuntimeError(
-            f"PyTorch is installed but cannot be imported: {error_text}"
+            "The Slicer PyTorch extension is not available. "
+            "Please install GliomaAI through the 3D Slicer "
+            "Extension Manager, which manages its PyTorch dependency. "
+            "For local development, install the PyTorch extension "
+            "separately."
         ) from e
+
+    try:
+        torch = PyTorchUtils.PyTorchUtilsLogic().torch
+
+        logging.info(
+            "PyTorch initialized through Slicer PyTorchUtils: %s",
+            torch.__version__
+        )
+
+        return torch
+
+    except Exception as e:
+        logging.exception(
+            "PyTorch initialization through PyTorchUtils failed."
+        )
+
+        raise RuntimeError(
+            "Unable to initialize PyTorch through the Slicer "
+            "PyTorch extension. Please check the Slicer application log."
+        ) from e
+
 
 
 def _prepare_modalities(t1c_array, flair_array):
